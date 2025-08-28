@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Master Popup Launcher</title>
+</head>
+<body>
+  <h1>Popup Master Control</h1>
+  <button id="launchMaster">Launch Master Popup</button>
+
+  <script>
+    let masterPopup = null;
+
+    document.getElementById('launchMaster').addEventListener('click', () => {
+      if (masterPopup && !masterPopup.closed) {
+        alert('Master popup already running!');
+        return;
+      }
+
+      // Open the master popup
+      masterPopup = window.open('', 'masterPopup', 'width=400,height=300');
+      
+      if (!masterPopup) {
+        alert('Popup blocked! Please allow popups for this site.');
+        return;
+      }
+
+      masterPopup.document.write(`
+        <html>
+          <head><title>Master Popup</title></head>
+          <body style="background:#000; color:#0f0; font-family: monospace; display:flex; flex-direction: column; align-items:center; justify-content:center; height:100vh;">
+            <h2>Master Popup Running</h2>
+            <button id="stopBtn">Stop All</button>
+            <script>
+              let popupWindows = [];
+              let popupMovers = [];
+              let spawning = true;
+
+              // Helper: random int between min and max inclusive
+              function randomInt(min, max) {
+                return Math.floor(Math.random() * (max - min + 1)) + min;
+              }
+
+              function spawnPopup(index) {
+                const screenWidth = window.screen.availWidth;
+                const screenHeight = window.screen.availHeight;
+                const w = 300;
+                const h = 200;
+
+                const x = randomInt(0, screenWidth - w);
+                const y = randomInt(0, screenHeight - h);
+
+                const p = window.open('', '', \`width=\${w},height=\${h},left=\${x},top=\${y}\`);
+                if (!p) return;
+
+                p.document.body.style.background = '#222';
+                p.document.body.style.color = '#f00';
+                p.document.title = 'Popup Ghost #' + index;
+                p.document.body.innerHTML = '<h3 style="user-select:none; text-align:center;">Catch me if you can! #' + index + '</h3>';
+
+                // Movement state
+                let posX = x;
+                let posY = y;
+                let dx = randomInt(4, 8) * (Math.random() < 0.5 ? 1 : -1);
+                let dy = randomInt(4, 8) * (Math.random() < 0.5 ? 1 : -1);
+
+                const moveInterval = setInterval(() => {
+                  try {
+                    if (p.closed) {
+                      clearInterval(moveInterval);
+                      return;
+                    }
+
+                    posX += dx;
+                    posY += dy;
+
+                    if (posX <= 0 || posX >= screenWidth - w) dx = -dx;
+                    if (posY <= 0 || posY >= screenHeight - h) dy = -dy;
+
+                    p.moveTo(posX, posY);
+                  } catch (e) {
+                    clearInterval(moveInterval);
+                  }
+                }, 30);
+
+                popupWindows.push(p);
+                popupMovers.push(moveInterval);
+              }
+
+              function spawnLoop() {
+                if (!spawning) return;
+                for (let i = 0; i < 3; i++) {
+                  spawnPopup(popupWindows.length + 1);
+                }
+                setTimeout(spawnLoop, 3000);
+              }
+
+              spawnLoop();
+
+              document.getElementById('stopBtn').addEventListener('click', () => {
+                spawning = false;
+                popupMovers.forEach(i => clearInterval(i));
+                popupMovers = [];
+                popupWindows.forEach(p => { if (!p.closed) p.close(); });
+                popupWindows = [];
+                alert('All popups closed.');
+              });
+            <\/script>
+          </body>
+        </html>
+      `);
+
+      masterPopup.document.close();
+    });
+  </script>
+</body>
+</html>
